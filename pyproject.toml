@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "cauta-api"
+version = "0.1.0"
+description = ""
+authors = ["thiagojorgelins <thiago.jorge2001@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = {extras = ["standard"], version = "^0.115.6"}
+sqlalchemy = "*"
+alembic = "*"
+python-jose = "^3.3.0"
+passlib = "^1.7.4"
+pwdlib = {extras = ["argon2"], version = "^0.2.1"}
+asyncpg = "^0.30.0"
+pydantic-settings = "^2.7.1"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
