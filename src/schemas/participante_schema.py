@@ -1,6 +1,8 @@
-from pydantic import BaseModel
-from typing import Optional
+from datetime import datetime
 from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class NivelSuporte(int, Enum):
@@ -44,3 +46,5 @@ class ParticipanteUpdate(ParticipanteBase):
 class ParticipanteResponse(ParticipanteBase):
     id: int
     usuario_id: int
+    created_at: datetime
+    updated_at: datetime
