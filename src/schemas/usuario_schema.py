@@ -35,10 +35,6 @@ class UsuarioUpdate(UsuarioBase):
     celular: Optional[str]
 
 
-class UsuarioCreate(UsuarioBase):
-    senha: str
-
-
 class UsuarioResponse(UsuarioBase):
     id: int
     role: str
