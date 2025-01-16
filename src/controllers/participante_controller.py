@@ -7,7 +7,7 @@ from src.schemas.participante_schema import (
     ParticipanteResponse,
     ParticipanteUpdate,
 )
-from src.security import get_current_user
+from src.security import get_current_user, verify_role
 from src.services.participante_service import ParticipanteService
 
 router = APIRouter()
@@ -17,13 +17,17 @@ service = ParticipanteService()
 @router.get(
     "/",
     response_model=list[ParticipanteResponse],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(verify_role("admin"))],
 )
 async def get_all(db: AsyncSession = Depends(get_db)):
     return await service.get_all(db)
 
 
-@router.get("/{id}", response_model=ParticipanteResponse)
+@router.get(
+    "/{id}",
+    response_model=ParticipanteResponse,
+    dependencies=[Depends(get_current_user)],
+)
 async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
     return await service.get_one(id, db)
 
@@ -40,13 +44,21 @@ async def create(
     return await service.create(participante, usuario_id, db)
 
 
-@router.patch("/{id}", response_model=ParticipanteResponse)
+@router.patch(
+    "/{id}",
+    response_model=ParticipanteResponse,
+    dependencies=[Depends(get_current_user)],
+)
 async def update(
     id: int, participante: ParticipanteUpdate, db: AsyncSession = Depends(get_db)
 ):
     return await service.update(id, participante, db)
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 async def delete(id: int, db: AsyncSession = Depends(get_db)):
     await service.delete(id, db)

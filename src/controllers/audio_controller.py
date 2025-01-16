@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.security import get_current_user
 from src.database import get_db
 from src.schemas.audio_schema import AudioCreate, AudioResponse
 from src.services.audio_service import AudioService
@@ -9,7 +10,12 @@ router = APIRouter()
 audio_service = AudioService()
 
 
-@router.post("/", response_model=AudioResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=AudioResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_current_user)],
+)
 async def upload_audio(
     id_usuario: int,
     id_vocalizacao: int,
@@ -29,7 +35,10 @@ async def upload_audio(
 
 
 @router.post(
-    "/bulk", response_model=list[AudioResponse], status_code=status.HTTP_201_CREATED
+    "/bulk",
+    response_model=list[AudioResponse],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_current_user)],
 )
 async def upload_varios_audios(
     id_usuario: int,
@@ -55,11 +64,17 @@ async def upload_varios_audios(
     return await audio_service.upload_multiple_audios(audio_datas, file_datas, db)
 
 
-@router.get("/", response_model=list[AudioResponse])
+@router.get(
+    "/", response_model=list[AudioResponse], dependencies=[Depends(get_current_user)]
+)
 async def list_audios(db: AsyncSession = Depends(get_db)):
     return await audio_service.list_audios(db)
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 async def delete_audio(id: int, db: AsyncSession = Depends(get_db)):
     await audio_service.delete_audio(id, db)
