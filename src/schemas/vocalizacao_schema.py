@@ -5,11 +5,16 @@ from datetime import datetime
 
 class VocalizacaoBase(BaseModel):
     nome: str
-    descricao: Optional[str] = None
+    descricao: str
 
 
 class VocalizacaoCreate(VocalizacaoBase):
     pass
+
+
+class VocalizacaoUpdate(BaseModel):
+    nome: Optional[str]
+    descricao: Optional[str]
 
 
 class VocalizacaoResponse(VocalizacaoBase):

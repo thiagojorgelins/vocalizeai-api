@@ -6,7 +6,6 @@ from src.schemas.participante_schema import ParticipanteCreate, ParticipanteUpda
 
 
 class ParticipanteService:
-
     async def get_all(self, db: AsyncSession) -> list[Participante]:
         result = await db.execute(select(Participante))
         return result.scalars().all()
@@ -25,7 +24,7 @@ class ParticipanteService:
         self, participante: ParticipanteCreate, usuario_id: int, db: AsyncSession
     ) -> Participante:
         result = await db.execute(
-            select(Participante).where(Participante.usuario_id == usuario_id)
+            select(Participante).where(Participante.id_usuario == usuario_id)
         )
         existing_participante = result.scalars().first()
         if existing_participante:
@@ -34,8 +33,7 @@ class ParticipanteService:
                 detail="O usuário já possui um participante associado.",
             )
         participante_data = participante.model_dump()
-        participante_data["usuario_id"] = usuario_id
-
+        participante_data["id_usuario"] = usuario_id
         db_participante = Participante(**participante_data)
         db.add(db_participante)
         await db.commit()
@@ -46,11 +44,8 @@ class ParticipanteService:
         self, id: int, participante: ParticipanteUpdate, db: AsyncSession
     ) -> Participante:
         participante_db = await self.get_one(id, db)
-        participante_db.nivel_suporte = participante.nivel_suporte
-        participante_db.genero = participante.genero
-        participante_db.condicao = participante.condicao
-        participante_db.idade = participante.idade
-        participante_db.qtd_palavras = participante.qtd_palavras
+        for key, value in participante.model_dump(exclude_unset=True).items():
+            setattr(participante_db, key, value)
 
         await db.commit()
         await db.refresh(participante_db)

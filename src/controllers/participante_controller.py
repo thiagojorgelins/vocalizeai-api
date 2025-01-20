@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.schemas.usuario_schema import UsuarioResponse
 from src.database import get_db
 from src.schemas.participante_schema import (
     ParticipanteCreate,
@@ -38,21 +39,23 @@ async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
 async def create(
     participante: ParticipanteCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UsuarioResponse = Depends(get_current_user),
 ):
-    usuario_id = int(current_user["sub"])
+    usuario_id = current_user.id
     return await service.create(participante, usuario_id, db)
 
 
 @router.patch(
     "/{id}",
     response_model=ParticipanteResponse,
-    dependencies=[Depends(get_current_user)],
 )
 async def update(
-    id: int, participante: ParticipanteUpdate, db: AsyncSession = Depends(get_db)
+    id: int, participante: ParticipanteUpdate, db: AsyncSession = Depends(get_db), current_user: UsuarioResponse = Depends(get_current_user)
 ):
-    return await service.update(id, participante, db)
+    if current_user.role == "admin" or current_user.id == id:
+        return await service.update(id, participante, db)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 
 @router.delete(

@@ -12,6 +12,9 @@ class Audio(Base):
         ForeignKey("vocalizacao.id"), nullable=False
     )
     id_usuario: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    id_participante: Mapped[int] = mapped_column(
+        ForeignKey("participante.id"), nullable=False
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -21,3 +24,4 @@ class Audio(Base):
 
     vocalizacao: Mapped["Vocalizacao"] = relationship(back_populates="audios")
     usuario: Mapped["Usuario"] = relationship(back_populates="audios")
+    participante: Mapped["Participante"] = relationship(back_populates="audios")

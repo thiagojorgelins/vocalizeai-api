@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from src.models import Vocalizacao
 from src.schemas.vocalizacao_schema import VocalizacaoCreate
 
@@ -16,6 +16,15 @@ class VocalizacaoService:
     async def create(
         self, vocalizacao: VocalizacaoCreate, db: AsyncSession
     ) -> Vocalizacao:
+        query = await db.execute(
+            select(Vocalizacao).where(Vocalizacao.nome == vocalizacao.nome)
+        )
+        vocalizacao_exists = query.scalars().first()
+        if vocalizacao_exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Vocalização já cadastrada.",
+            )
         db_vocalizacao = Vocalizacao(**vocalizacao.model_dump())
         db.add(db_vocalizacao)
         await db.commit()
@@ -36,8 +45,9 @@ class VocalizacaoService:
         self, id: int, vocalizacao: VocalizacaoCreate, db: AsyncSession
     ) -> Vocalizacao:
         vocalizacao_db = await self.__get_by_id(id, db)
-        vocalizacao_db.nome = vocalizacao.nome
-        vocalizacao_db.descricao = vocalizacao.descricao
+        for key, value in vocalizacao.model_dump(exclude_unset=True).items():
+            setattr(vocalizacao_db, key, value)
+
         await db.commit()
         await db.refresh(vocalizacao_db)
         return vocalizacao_db

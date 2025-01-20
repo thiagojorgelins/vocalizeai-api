@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
 
 from src.controllers import (
     audio_controller,
@@ -11,7 +10,6 @@ from src.controllers import (
 )
 
 app = FastAPI(title="CAUTA API")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

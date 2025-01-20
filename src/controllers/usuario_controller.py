@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.security import get_current_user, verify_role
 from src.database import get_db
-from src.schemas.usuario_schema import UsuarioBase, UsuarioResponse
+from src.schemas.usuario_schema import UsuarioPayload, UsuarioResponse, UsuarioUpdate
 from src.services.usuario_service import UsuarioService
 
 router = APIRouter()
@@ -21,7 +21,7 @@ async def get_all(db: AsyncSession = Depends(get_db)):
 
 @router.get(
     "/{id}",
-    response_model=UsuarioResponse or None,
+    response_model=UsuarioPayload or None,
     dependencies=[Depends(get_current_user)],
 )
 async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
@@ -29,10 +29,13 @@ async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch(
-    "/{id}", response_model=UsuarioResponse, dependencies=[Depends(get_current_user)]
+    "/{id}", response_model=UsuarioResponse
 )
-async def update(id: int, usuario: UsuarioBase, db: AsyncSession = Depends(get_db)):
-    return await service.update(id, usuario, db)
+async def update(id: int, usuario: UsuarioUpdate, db: AsyncSession = Depends(get_db), current_user: UsuarioResponse = Depends(get_current_user)):
+    if current_user.role == "admin" or current_user.id == id:
+        return await service.update(id, usuario, db)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 
 @router.delete(

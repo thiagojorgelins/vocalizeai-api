@@ -7,6 +7,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.database import get_db
+from src.models.usuario_model import Usuario
 
 load_dotenv()
 
@@ -57,9 +62,10 @@ def decode_access_token(token: str, verify_exp: bool = True) -> dict:
         )
 
 
-def get_current_user(
+async def get_current_user(
     token: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-) -> dict:
+    db: AsyncSession = Depends(get_db),
+) -> Usuario:
     if not token.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -76,7 +82,19 @@ def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        return payload
+        usuario_id = payload["sub"]
+
+        result = await db.execute(select(Usuario).where(Usuario.id == int(usuario_id)))
+        usuario = result.scalars().first()
+        if not usuario:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuário não encontrado ou foi excluído.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        return usuario
+
     except HTTPException:
         raise
     except Exception as e:
@@ -88,8 +106,8 @@ def get_current_user(
 
 
 def verify_role(role: str):
-    def role_dependency(current_user: dict = Depends(get_current_user)):
-        if current_user["role"] != role:
+    def role_dependency(current_user: Usuario = Depends(get_current_user)):
+        if current_user.role != role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permissão negada.",

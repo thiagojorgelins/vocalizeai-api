@@ -1,26 +1,7 @@
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
-
-
-class NivelSuporte(int, Enum):
-    NIVEL_1 = 1
-    NIVEL_2 = 2
-    NIVEL_3 = 3
-
-
-class GeneroParticipante(str, Enum):
-    M = "Masculino"
-    F = "Feminino"
-
-
-class Condicao(str, Enum):
-    TEA = "Transtorno do Espectro Autista"
-    T21 = "Síndrome de Down"
-    PC = "Paralisia Cerebral"
-    OUTRA = "Outra"
+from pydantic import BaseModel, EmailStr
 
 
 class UsuarioBase(BaseModel):
@@ -29,12 +10,22 @@ class UsuarioBase(BaseModel):
     celular: str
 
 
-class UsuarioUpdate(UsuarioBase):
-    nome: Optional[str]
-    email: Optional[EmailStr]
-    celular: Optional[str]
+class UsuarioUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[EmailStr] = None
+    celular: Optional[str] = None
 
 
+class ParticipanteResponse(BaseModel):
+    id: int
+
+
+class UsuarioPayload(UsuarioBase):
+    id: int
+    role: str
+    participante: Optional[ParticipanteResponse] = None
+
+    
 class UsuarioResponse(UsuarioBase):
     id: int
     role: str

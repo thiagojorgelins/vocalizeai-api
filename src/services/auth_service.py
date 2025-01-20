@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from jose import ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from src.schemas.auth_schema import AuthLogin, AuthRegister
+from src.schemas.auth_schema import AuthLogin, AuthRegister, Token
 from src.models import Usuario
 from src.security import (
     decode_access_token,
@@ -50,27 +50,29 @@ class AuthService:
         access_token = create_access_token(token_data)
         return access_token
 
-    async def refresh_token(self, current_token: str, db: AsyncSession) -> dict:
+    async def refresh_token(self, current_token: Token, db: AsyncSession) -> dict:
         try:
-            payload = decode_access_token(current_token, verify_exp=False)
-            user_id = payload.get("sub")
-            if not user_id:
+            payload = decode_access_token(current_token.access_token, verify_exp=False)
+            usuario_id = payload.get("sub")
+            if not usuario_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Token inválido ou não contém informações do usuário.",
                 )
 
-            result = await db.execute(select(Usuario).where(Usuario.id == int(user_id)))
-            user = result.scalars().first()
+            result = await db.execute(
+                select(Usuario).where(Usuario.id == int(usuario_id))
+            )
+            usuario = result.scalars().first()
 
-            if not user:
+            if not usuario:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Usuário não encontrado.",
                 )
 
-            token_data = {"sub": user.id, "role": user.role}
-            new_access_token = create_access_token(data=token_data)
+            token_data = {"sub": str(usuario.id), "role": usuario.role}
+            new_access_token = create_access_token(token_data)
 
             return {"access_token": new_access_token}
 

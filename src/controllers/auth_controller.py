@@ -25,7 +25,7 @@ async def login(login: AuthLogin, db: AsyncSession = Depends(get_db)):
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    current_token: str,
+    current_token: Token,
     db: AsyncSession = Depends(get_db),
 ):
     return await service.refresh_token(current_token, db)

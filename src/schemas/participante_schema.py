@@ -5,6 +5,13 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class QuantidadePalavras(str, Enum):
+    NENHUMA = "Nenhuma palavra"
+    UM_CINCO = "Entre 1 - 5"
+    SEIS_DEZ = "Entre 6 - 10"
+    ONZE_VINTE = "Entre 11 - 20"
+
+
 class NivelSuporte(int, Enum):
     NIVEL_1 = 1
     NIVEL_2 = 2
@@ -16,19 +23,11 @@ class GeneroParticipante(str, Enum):
     F = "Feminino"
 
 
-class Condicao(str, Enum):
-    TEA = "Transtorno do Espectro Autista"
-    T21 = "Síndrome de Down"
-    PC = "Paralisia Cerebral"
-    OUTRA = "Outra"
-
-
 class ParticipanteBase(BaseModel):
     genero: GeneroParticipante
     idade: int
     nivel_suporte: NivelSuporte
-    qtd_palavras: int
-    condicao: Condicao
+    qtd_palavras: QuantidadePalavras
 
 
 class ParticipanteCreate(ParticipanteBase):
@@ -39,12 +38,11 @@ class ParticipanteUpdate(ParticipanteBase):
     genero: Optional[GeneroParticipante]
     idade: Optional[int]
     nivel_suporte: Optional[NivelSuporte]
-    qtd_palavras: Optional[int]
-    condicao: Optional[Condicao]
+    qtd_palavras: Optional[QuantidadePalavras]
 
 
 class ParticipanteResponse(ParticipanteBase):
     id: int
-    usuario_id: int
+    id_usuario: int
     created_at: datetime
     updated_at: datetime

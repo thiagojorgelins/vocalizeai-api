@@ -7,7 +7,7 @@ class Vocalizacao(Base):
     __tablename__ = "vocalizacao"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    nome: Mapped[str] = mapped_column(String, nullable=False)
+    nome: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     descricao: Mapped[str] = mapped_column(String)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
