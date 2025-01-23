@@ -25,7 +25,7 @@ class UsuarioPayload(UsuarioBase):
     role: str
     participante: Optional[ParticipanteResponse] = None
 
-    
+
 class UsuarioResponse(UsuarioBase):
     id: int
     role: str
