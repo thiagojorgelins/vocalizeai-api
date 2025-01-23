@@ -1,11 +1,13 @@
 import os
+from datetime import datetime
+
 from fastapi import HTTPException, status
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
-from src.schemas.usuario_schema import UsuarioResponse
-from src.models.participante_model import Participante
+
 from src.models import Audio, Usuario, Vocalizacao
-from src.schemas.audio_schema import AudioCreate
+from src.models.participante_model import Participante
+from src.schemas.usuario_schema import UsuarioResponse
 
 UPLOAD_DIR = "uploads"
 
@@ -14,6 +16,12 @@ class AudioService:
     def __init__(self):
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR)
+
+    def _generate_filename(
+        self, vocalizacao_nome: str, audio_id: int, participante_id: int
+    ) -> str:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M")
+        return f"{timestamp}_{audio_id}_{participante_id}_{vocalizacao_nome.lower()}.wav"
 
     async def _get_usuario(self, id_usuario: int, db: AsyncSession) -> Usuario:
         result = await db.execute(select(Usuario).where(Usuario.id == id_usuario))
@@ -57,7 +65,6 @@ class AudioService:
         id_vocalizacao: int,
         file_data: bytes,
         current_user: UsuarioResponse,
-        file_name: str,
         db: AsyncSession,
     ) -> Audio:
         participante = await db.execute(
@@ -73,20 +80,9 @@ class AudioService:
 
         vocalizacao = await self._get_vocalizacao(id_vocalizacao, db)
 
-        novo_nome_arquivo = f"{vocalizacao.nome.lower()}_{file_name}"
-        file_path = os.path.join(UPLOAD_DIR, novo_nome_arquivo)
-
-        try:
-            with open(file_path, "wb") as buffer:
-                buffer.write(file_data)
-        except IOError as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Erro ao salvar o arquivo: {str(e)}",
-            )
-
+        # Criando o registro do áudio no banco para obter o ID
         audio_data = Audio(
-            nome_arquivo=novo_nome_arquivo,
+            nome_arquivo="temp",  # Nome temporário
             id_vocalizacao=id_vocalizacao,
             id_usuario=current_user.id,
             id_participante=participante.id,
@@ -94,35 +90,35 @@ class AudioService:
         db.add(audio_data)
         await db.commit()
         await db.refresh(audio_data)
-        return audio_data
 
-    async def upload_multiple_audios(
-        self,
-        id_vocalizacao: int,
-        files_data: list[bytes],
-        file_names: list[str],
-        current_user: Usuario,
-        db: AsyncSession,
-    ) -> list[Audio]:
-        uploaded_audios = []
+        # Gerando o nome do arquivo com o ID do áudio
+        novo_nome_arquivo = self._generate_filename(
+            vocalizacao_nome=vocalizacao.nome,
+            audio_id=audio_data.id,
+            participante_id=participante.id,
+        )
+        if not os.path.exists(UPLOAD_DIR):
+            os.makedirs(UPLOAD_DIR)
+
+        file_path = os.path.join(UPLOAD_DIR, novo_nome_arquivo)
+
         try:
-            for file_data, file_name in zip(files_data, file_names):
-                uploaded_audio = await self.upload_audio(
-                    id_vocalizacao=id_vocalizacao,
-                    file_data=file_data,
-                    current_user=current_user,
-                    file_name=file_name,
-                    db=db,
-                )
-                uploaded_audios.append(uploaded_audio)
-        except Exception as e:
-            for audio in uploaded_audios:
-                await self.delete_audio(audio.id, db)
+            with open(file_path, "wb") as buffer:
+                buffer.write(file_data)
+        except IOError as e:
+            await db.delete(audio_data)
+            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Erro ao fazer upload de múltiplos áudios: {str(e)}",
+                detail=f"Erro ao salvar o arquivo: {str(e)}",
             )
-        return uploaded_audios
+
+        # Atualizando o nome do arquivo no registro
+        audio_data.nome_arquivo = novo_nome_arquivo
+        await db.commit()
+        await db.refresh(audio_data)
+
+        return audio_data
 
     async def list_audios(self, db: AsyncSession) -> list[Audio]:
         result = await db.execute(select(Audio))

@@ -50,7 +50,10 @@ async def create(
     response_model=ParticipanteResponse,
 )
 async def update(
-    id: int, participante: ParticipanteUpdate, db: AsyncSession = Depends(get_db), current_user: UsuarioResponse = Depends(get_current_user)
+    id: int,
+    participante: ParticipanteUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
 ):
     if current_user.role == "admin" or current_user.id == id:
         return await service.update(id, participante, db)
