@@ -18,10 +18,22 @@ class AudioService:
             os.makedirs(UPLOAD_DIR)
 
     def _generate_filename(
-        self, vocalizacao_nome: str, audio_id: int, participante_id: int
+        self,
+        vocalizacao_nome: str,
+        audio_id: int,
+        participante_id: int,
+        is_segment: bool = False,
+        original_filename: str = None,
+        segment_number: int = None
     ) -> str:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M")
-        return f"{timestamp}_{audio_id}_{participante_id}_{vocalizacao_nome.lower()}.wav"
+        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+
+        if is_segment and original_filename:
+            # Remove a extensão .wav do nome original
+            base_name = original_filename[:-4]
+            return f"{base_name}_segment_{segment_number}.wav"
+
+        return f"{vocalizacao_nome.lower()}_{audio_id}_{participante_id}_{timestamp}.wav"
 
     async def _get_usuario(self, id_usuario: int, db: AsyncSession) -> Usuario:
         result = await db.execute(select(Usuario).where(Usuario.id == id_usuario))
@@ -66,6 +78,9 @@ class AudioService:
         file_data: bytes,
         current_user: UsuarioResponse,
         db: AsyncSession,
+        is_segment: bool = False,
+        original_filename: str = None,
+        segment_number: int = None
     ) -> Audio:
         participante = await db.execute(
             select(Participante).where(
@@ -82,7 +97,7 @@ class AudioService:
 
         # Criando o registro do áudio no banco para obter o ID
         audio_data = Audio(
-            nome_arquivo="temp",  # Nome temporário
+            nome_arquivo="temp",
             id_vocalizacao=id_vocalizacao,
             id_usuario=current_user.id,
             id_participante=participante.id,
@@ -96,6 +111,9 @@ class AudioService:
             vocalizacao_nome=vocalizacao.nome,
             audio_id=audio_data.id,
             participante_id=participante.id,
+            is_segment=is_segment,
+            original_filename=original_filename,
+            segment_number=segment_number
         )
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR)

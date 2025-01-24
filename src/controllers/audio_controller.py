@@ -16,7 +16,7 @@ service = AudioService()
 
 
 @router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
 )
 async def audio_upload(
@@ -32,9 +32,19 @@ async def audio_upload(
         temp_wav_path = temp_wav_file.name
 
     try:
-        # Salvar o áudio carregado
         audio = AudioSegment.from_file(file.file)
         audio.export(temp_wav_path, format="wav")
+
+        # Salvar áudio original
+        with open(temp_wav_path, "rb") as audio_file:
+            audio_bytes = audio_file.read()
+            original_audio = await service.upload_audio(
+                id_vocalizacao=id_vocalizacao,
+                file_data=audio_bytes,
+                current_user=current_user,
+                db=db,
+                is_segment=False
+            )
 
         segments_info = await asyncio.to_thread(segment_data, temp_wav_path)
 
@@ -43,18 +53,19 @@ async def audio_upload(
                 status_code=400, detail="Nenhum segmento válido encontrado."
             )
 
-        saved_data = []
-        for segment in segments_info:
-            # Exportar o segmento diretamente para bytes
+        saved_data = [original_audio]
+        for i, segment in enumerate(segments_info):
             segment_audio = segment["segment_data"]
             segment_bytes = segment_audio.export(format="wav").read()
 
-            # Enviar os dados do segmento para o serviço
             audio_data = await service.upload_audio(
                 id_vocalizacao=id_vocalizacao,
                 file_data=segment_bytes,
                 current_user=current_user,
                 db=db,
+                is_segment=True,
+                original_filename=original_audio.nome_arquivo,
+                segment_number=i+1
             )
             saved_data.append(audio_data)
 
@@ -68,7 +79,6 @@ async def audio_upload(
     finally:
         if os.path.exists(temp_wav_path):
             os.remove(temp_wav_path)
-
 
 @router.get(
     "/", response_model=list[AudioResponse], dependencies=[Depends(get_current_user)]
