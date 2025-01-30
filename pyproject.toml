@@ -19,6 +19,7 @@ python-dotenv = "^1.0.1"
 pydub = "^0.25.1"
 redis = "^5.2.1"
 fastapi-mail = {extras = ["aioredis"], version = "^1.4.2"}
+boto3 = "^1.36.9"
 
 
 [build-system]

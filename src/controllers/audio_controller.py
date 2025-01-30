@@ -1,4 +1,3 @@
-import asyncio
 import os
 from tempfile import NamedTemporaryFile
 
@@ -6,7 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.preprocessing.preprocessing import AudioSegment, segment_data
+from src.preprocessing.preprocessing import AudioSegment
 from src.schemas.audio_schema import AudioResponse
 from src.security import get_current_user, verify_role
 from src.services.audio_service import AudioService
@@ -18,6 +17,7 @@ service = AudioService()
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    response_model=AudioResponse,
 )
 async def audio_upload(
     id_vocalizacao: int,
@@ -37,56 +37,19 @@ async def audio_upload(
 
         # Salvar áudio original
         with open(temp_wav_path, "rb") as audio_file:
-            audio_bytes = audio_file.read()
-            original_audio = await service.upload_audio(
-                id_vocalizacao=id_vocalizacao,
-                file_data=audio_bytes,
-                current_user=current_user,
-                db=db,
-                is_segment=False,
-            )
+            file_data = audio_file.read()
 
-        segments_info = await asyncio.to_thread(segment_data, temp_wav_path)
-
-        if not segments_info:
-            raise HTTPException(
-                status_code=400, detail="Nenhum segmento válido encontrado."
-            )
-
-        saved_data = [original_audio]
-        for i, segment in enumerate(segments_info):
-            segment_audio = segment["segment_data"]
-            segment_bytes = segment_audio.export(format="wav").read()
-
-            audio_data = await service.upload_audio(
-                id_vocalizacao=id_vocalizacao,
-                file_data=segment_bytes,
-                current_user=current_user,
-                db=db,
-                is_segment=True,
-                original_filename=original_audio.nome_arquivo,
-                segment_number=i + 1,
-            )
-            saved_data.append(audio_data)
-
-        return {"message": "Áudio processado com sucesso.", "segments": saved_data}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao processar o áudio: {str(e)}"
+        audio_record = await service.upload_audio(
+            id_vocalizacao=id_vocalizacao,
+            file_data=file_data,
+            current_user=current_user,
+            db=db,
+            original_filename=file.filename,
         )
 
+        return audio_record
     finally:
-        if os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)
-
-
-@router.get(
-    "/", response_model=list[AudioResponse], dependencies=[Depends(get_current_user)]
-)
-async def list_audios(db: AsyncSession = Depends(get_db)):
-    return await service.list_audios(db)
-
+        os.remove(temp_wav_path)
 
 @router.patch(
     "/{id}",
@@ -98,13 +61,13 @@ async def update(
     audio: AudioResponse,
     db: AsyncSession = Depends(get_db),
 ):
-    return await service.update(id, audio, db)
+    return await service.update(id, audio.dict(), db)
 
 
 @router.delete(
     "/{id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(verify_role("admin"))],
 )
-async def delete_audio(id: int, db: AsyncSession = Depends(get_db)):
+async def delete(id: int, db: AsyncSession = Depends(get_db)):
     await service.delete_audio(id, db)
+    return {"message": "Áudio deletado com sucesso"}
