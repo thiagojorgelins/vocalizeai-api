@@ -28,10 +28,13 @@ async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
     return await service.get_one(id, db)
 
 
-@router.patch(
-    "/{id}", response_model=UsuarioResponse
-)
-async def update(id: int, usuario: UsuarioUpdate, db: AsyncSession = Depends(get_db), current_user: UsuarioResponse = Depends(get_current_user)):
+@router.patch("/{id}", response_model=UsuarioResponse)
+async def update(
+    id: int,
+    usuario: UsuarioUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
     if current_user.role == "admin" or current_user.id == id:
         return await service.update(id, usuario, db)
     else:

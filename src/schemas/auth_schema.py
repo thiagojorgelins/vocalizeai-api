@@ -14,3 +14,18 @@ class AuthRegister(UsuarioBase):
 class AuthLogin(BaseModel):
     email: EmailStr
     senha: str
+
+
+class ConfirmRegistration(BaseModel):
+    email: EmailStr
+    codigo_confirmacao: str
+
+
+class EmailRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    email: EmailStr
+    codigo_confirmacao: str
+    nova_senha: str
