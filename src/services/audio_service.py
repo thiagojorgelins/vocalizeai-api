@@ -24,7 +24,7 @@ class AudioService:
         participante_id: int,
         is_segment: bool = False,
         original_filename: str = None,
-        segment_number: int = None
+        segment_number: int = None,
     ) -> str:
         timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
 
@@ -33,7 +33,9 @@ class AudioService:
             base_name = original_filename[:-4]
             return f"{base_name}_segment_{segment_number}.wav"
 
-        return f"{vocalizacao_nome.lower()}_{audio_id}_{participante_id}_{timestamp}.wav"
+        return (
+            f"{vocalizacao_nome.lower()}_{audio_id}_{participante_id}_{timestamp}.wav"
+        )
 
     async def _get_usuario(self, id_usuario: int, db: AsyncSession) -> Usuario:
         result = await db.execute(select(Usuario).where(Usuario.id == id_usuario))
@@ -80,11 +82,10 @@ class AudioService:
         db: AsyncSession,
         is_segment: bool = False,
         original_filename: str = None,
-        segment_number: int = None
+        segment_number: int = None,
     ) -> Audio:
         participante = await db.execute(
-            select(Participante).where(
-                Participante.id_usuario == current_user.id)
+            select(Participante).where(Participante.id_usuario == current_user.id)
         )
         participante = participante.scalars().first()
         if not participante:
@@ -113,7 +114,7 @@ class AudioService:
             participante_id=participante.id,
             is_segment=is_segment,
             original_filename=original_filename,
-            segment_number=segment_number
+            segment_number=segment_number,
         )
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR)

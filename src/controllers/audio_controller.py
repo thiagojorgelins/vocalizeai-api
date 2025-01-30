@@ -43,7 +43,7 @@ async def audio_upload(
                 file_data=audio_bytes,
                 current_user=current_user,
                 db=db,
-                is_segment=False
+                is_segment=False,
             )
 
         segments_info = await asyncio.to_thread(segment_data, temp_wav_path)
@@ -65,7 +65,7 @@ async def audio_upload(
                 db=db,
                 is_segment=True,
                 original_filename=original_audio.nome_arquivo,
-                segment_number=i+1
+                segment_number=i + 1,
             )
             saved_data.append(audio_data)
 
@@ -79,6 +79,7 @@ async def audio_upload(
     finally:
         if os.path.exists(temp_wav_path):
             os.remove(temp_wav_path)
+
 
 @router.get(
     "/", response_model=list[AudioResponse], dependencies=[Depends(get_current_user)]
