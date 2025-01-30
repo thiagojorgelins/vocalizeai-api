@@ -1,5 +1,6 @@
+from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, func
+
 from src.database import Base
 
 
@@ -18,7 +19,7 @@ class Usuario(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
-
+    verificado: Mapped[bool] = mapped_column(Boolean, default=False)
     participante: Mapped["Participante"] = relationship(
         back_populates="usuario", uselist=False
     )
