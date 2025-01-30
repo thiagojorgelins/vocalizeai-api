@@ -17,6 +17,8 @@ asyncpg = "^0.30.0"
 pydantic-settings = "^2.7.1"
 python-dotenv = "^1.0.1"
 pydub = "^0.25.1"
+redis = "^5.2.1"
+fastapi-mail = {extras = ["aioredis"], version = "^1.4.2"}
 
 
 [build-system]
