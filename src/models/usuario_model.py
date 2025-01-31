@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Boolean, DateTime, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -20,6 +20,7 @@ class Usuario(Base):
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
     verificado: Mapped[bool] = mapped_column(Boolean, default=False)
+    aceite_termos: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text('false'))
     participante: Mapped["Participante"] = relationship(
         back_populates="usuario", uselist=False
     )
