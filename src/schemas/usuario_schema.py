@@ -31,3 +31,5 @@ class UsuarioResponse(UsuarioBase):
     role: str
     created_at: datetime
     updated_at: datetime
+    verificado: bool
+    aceite_termos: bool
