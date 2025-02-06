@@ -42,6 +42,7 @@ class AuthService:
             senha=hashed_password,
             celular=usuario.celular,
             verificado=False,
+            aceite_termos=usuario.aceite_termos,
         )
         db.add(db_usuario)
         await db.commit()

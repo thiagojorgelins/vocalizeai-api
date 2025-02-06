@@ -9,6 +9,7 @@ class Token(BaseModel):
 
 class AuthRegister(UsuarioBase):
     senha: str
+    aceite_termos: bool
 
 
 class AuthLogin(BaseModel):
