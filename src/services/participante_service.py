@@ -1,8 +1,10 @@
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.models import Participante
-from src.schemas.participante_schema import ParticipanteCreate, ParticipanteUpdate
+from src.schemas.participante_schema import (ParticipanteCreate,
+                                             ParticipanteUpdate)
 
 
 class ParticipanteService:
@@ -41,9 +43,16 @@ class ParticipanteService:
         return db_participante
 
     async def update(
-        self, id: int, participante: ParticipanteUpdate, db: AsyncSession
+        self, id: int, participante: ParticipanteUpdate, usuario_id: int, role: str, db: AsyncSession
     ) -> Participante:
         participante_db = await self.get_one(id, db)
+
+        if role != "admin" and participante_db.id_usuario != usuario_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para atualizar este participante",
+            )
+
         for key, value in participante.model_dump(exclude_unset=True).items():
             setattr(participante_db, key, value)
 

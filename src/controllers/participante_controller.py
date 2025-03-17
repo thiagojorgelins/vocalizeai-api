@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.schemas.usuario_schema import UsuarioResponse
 from src.database import get_db
-from src.schemas.participante_schema import (
-    ParticipanteCreate,
-    ParticipanteResponse,
-    ParticipanteUpdate,
-)
+from src.schemas.participante_schema import (ParticipanteCreate,
+                                             ParticipanteResponse,
+                                             ParticipanteUpdate)
+from src.schemas.usuario_schema import UsuarioResponse
 from src.security import get_current_user, verify_role
 from src.services.participante_service import ParticipanteService
 
@@ -55,16 +53,23 @@ async def update(
     db: AsyncSession = Depends(get_db),
     current_user: UsuarioResponse = Depends(get_current_user),
 ):
-    if current_user.role == "admin" or current_user.id == id:
-        return await service.update(id, participante, db)
-    else:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    return await service.update(id, participante, current_user.id, current_user.role, db)
 
 
 @router.delete(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_user)],
 )
-async def delete(id: int, db: AsyncSession = Depends(get_db)):
-    await service.delete(id, db)
+async def delete(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    participante = await service.get_one(id, db)
+    if current_user.role == "admin" or participante.id_usuario == current_user.id:
+        await service.delete(id, db)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Você não tem permissão para excluir este participante",
+        )
