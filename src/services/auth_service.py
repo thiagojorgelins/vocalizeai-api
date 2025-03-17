@@ -8,14 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import Usuario
-from src.schemas.auth_schema import AuthLogin, AuthRegister, ConfirmRegistration, Token
-from src.security import (
-    create_access_token,
-    decode_access_token,
-    get_password_hash,
-    verify_password,
-)
-from src.utils.email_utils import send_confirmation_email, send_password_reset_email
+from src.schemas.auth_schema import (AuthLogin, AuthRegister, Token)
+from src.security import (create_access_token, decode_access_token,
+                          get_password_hash, verify_password)
+from src.utils.email_utils import (send_confirmation_email,
+                                   send_password_reset_email)
 
 redis_client = redis.StrictRedis(
     host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), db=0
@@ -78,18 +75,26 @@ class AuthService:
 
     async def authenticate(self, login: AuthLogin, db: AsyncSession) -> str:
         usuario = await self.get_by_email(login.email, db)
-        if not usuario or not verify_password(login.senha, usuario.senha):
+        if not usuario:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciais inválidas.",
-                headers={"WWW-Authenticate": "Bearer"},
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado.",
             )
-
+        
         if not usuario.verificado:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Usuário não verificado. Verifique seu e-mail para ativar sua conta.",
+            ) 
+            
+        if not verify_password(login.senha, usuario.senha):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email e/ou senha inválidos.",
+                headers={"WWW-Authenticate": "Bearer"},
             )
+
+
 
         token_data = {"sub": str(usuario.id), "role": usuario.role}
         access_token = create_access_token(token_data)
