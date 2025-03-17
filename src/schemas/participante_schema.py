@@ -6,21 +6,24 @@ from pydantic import BaseModel
 
 
 class QuantidadePalavras(str, Enum):
-    NENHUMA = "Nenhuma palavra"
-    UM_CINCO = "Entre 1 - 5"
-    SEIS_DEZ = "Entre 6 - 10"
-    ONZE_VINTE = "Entre 11 - 20"
+    NENHUMA = "Não pronuncia nenhuma palavra"
+    UM_CINCO = "Pronuncia entre 1 e 5 palavras"
+    SEIS_QUINZE = "Pronuncia entre 6 e 15 palavras"
+    DEZESSEIS_MAIS = "Pronuncia 16 ou mais palavras"
 
 
 class NivelSuporte(int, Enum):
+    NIVEL_0 = 0
     NIVEL_1 = 1
     NIVEL_2 = 2
     NIVEL_3 = 3
+    
 
 
 class GeneroParticipante(str, Enum):
     M = "Masculino"
     F = "Feminino"
+    O = "Outros"
 
 
 class ParticipanteBase(BaseModel):
