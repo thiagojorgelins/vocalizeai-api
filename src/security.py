@@ -1,10 +1,12 @@
 import os
 from datetime import UTC, datetime, timedelta
+from http import HTTPStatus
 from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import (APIKeyHeader, HTTPAuthorizationCredentials,
+                              HTTPBearer)
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -18,11 +20,21 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+API_KEY_NAME = "X-API-Key"
+API_KEY = os.getenv("API_KEY", "default_api_key")
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 bearer_scheme = HTTPBearer()
 
+async def get_api_key(api_key_header: str = Depends(api_key_header)):
+    if api_key_header == API_KEY:
+        return api_key_header
+    raise HTTPException(
+        status_code=HTTPStatus.FORBIDDEN,
+        detail="API Key inválida ou não fornecida"
+    )
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
