@@ -1,37 +1,13 @@
 import asyncio
-import base64
 import os
-from email.mime.text import MIMEText
 
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
+import sib_api_v3_sdk
 from pydantic import EmailStr
+from sib_api_v3_sdk.rest import ApiException
 
-GMAIL_CLIENT_ID = os.getenv("GMAIL_CLIENT_ID")
-GMAIL_CLIENT_SECRET = os.getenv("GMAIL_CLIENT_SECRET")
-GMAIL_REFRESH_TOKEN = os.getenv("GMAIL_REFRESH_TOKEN")
-GMAIL_SENDER_EMAIL = os.getenv("GMAIL_SENDER_EMAIL")
-
-
-def build_gmail_service():
-    creds = Credentials(
-        None,
-        refresh_token=GMAIL_REFRESH_TOKEN,
-        client_id=GMAIL_CLIENT_ID,
-        client_secret=GMAIL_CLIENT_SECRET,
-        token_uri="https://oauth2.googleapis.com/token",
-    )
-    return build("gmail", "v1", credentials=creds)
-
-
-def create_message(to_email: str, subject: str, html_content: str):
-    sender_name = os.getenv("GMAIL_SENDER_NAME")
-    message = MIMEText(html_content, "html")
-    message["to"] = to_email
-    message["from"] = f"{sender_name} <{GMAIL_SENDER_EMAIL}>"
-    message["subject"] = subject
-    return {"raw": base64.urlsafe_b64encode(message.as_bytes()).decode()}
-
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")
+BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME")
 
 
 async def send_email(to_email: EmailStr, subject: str, html_content: str):
@@ -41,9 +17,27 @@ async def send_email(to_email: EmailStr, subject: str, html_content: str):
 
 def _send_email_sync(to_email: str, subject: str, html_content: str):
     try:
-        service = build_gmail_service()
-        message = create_message(to_email, subject, html_content)
-        service.users().messages().send(userId="me", body=message).execute()
+        configuration = sib_api_v3_sdk.Configuration()
+        configuration.api_key['api-key'] = BREVO_API_KEY
+
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+            sib_api_v3_sdk.ApiClient(configuration))
+
+        sender = {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL}
+
+        to = [{"email": to_email}]
+
+        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+            to=to,
+            html_content=html_content,
+            sender=sender,
+            subject=subject
+        )
+
+        api_response = api_instance.send_transac_email(send_smtp_email)
+
+    except ApiException as e:
+        raise Exception(f"Erro ao enviar email: {str(e)}")
     except Exception as e:
         raise Exception(f"Erro ao enviar email: {str(e)}")
 
