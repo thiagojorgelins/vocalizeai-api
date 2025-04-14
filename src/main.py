@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 from src.controllers import (
     audio_controller,
@@ -9,8 +10,14 @@ from src.controllers import (
     vocalizacao_controller,
 )
 from src.security import get_api_key
+from src.database import ENV_TYPE
 
-app = FastAPI(title="CAUTA API", redoc_url=None)
+app = FastAPI(
+    title=f"VocalizeAI API - {ENV_TYPE.upper()}",
+    description=f"API para o projeto VocalizeAI - Ambiente: {ENV_TYPE.upper()}",
+    redoc_url=None,
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,6 +25,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_environment_header(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Environment"] = ENV_TYPE
+    return response
+
 
 app.include_router(
     audio_controller.router,
@@ -53,4 +68,8 @@ app.include_router(
 
 @app.get("/", include_in_schema=True, tags=["Status"])
 async def root():
-    return {"status": "online", "message": "CAUTA API está funcionando"}
+    return {
+        "status": "online",
+        "message": f"VocalizeAI API está funcionando - Ambiente: {ENV_TYPE}",
+        "environment": ENV_TYPE,
+    }
