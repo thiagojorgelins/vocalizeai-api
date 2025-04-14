@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.schemas.participante_schema import (ParticipanteCreate,
-                                             ParticipanteResponse,
-                                             ParticipanteUpdate)
+from src.schemas.participante_schema import (
+    ParticipanteCreate,
+    ParticipanteResponse,
+    ParticipanteUpdate,
+)
 from src.schemas.usuario_schema import UsuarioResponse
 from src.security import get_current_user, verify_role
 from src.services.participante_service import ParticipanteService
@@ -53,7 +55,9 @@ async def update(
     db: AsyncSession = Depends(get_db),
     current_user: UsuarioResponse = Depends(get_current_user),
 ):
-    return await service.update(id, participante, current_user.id, current_user.role, db)
+    return await service.update(
+        id, participante, current_user.id, current_user.role, db
+    )
 
 
 @router.delete(

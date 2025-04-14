@@ -18,20 +18,18 @@ async def send_email(to_email: EmailStr, subject: str, html_content: str):
 def _send_email_sync(to_email: str, subject: str, html_content: str):
     try:
         configuration = sib_api_v3_sdk.Configuration()
-        configuration.api_key['api-key'] = BREVO_API_KEY
+        configuration.api_key["api-key"] = BREVO_API_KEY
 
         api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
-            sib_api_v3_sdk.ApiClient(configuration))
+            sib_api_v3_sdk.ApiClient(configuration)
+        )
 
         sender = {"name": BREVO_SENDER_NAME, "email": BREVO_SENDER_EMAIL}
 
         to = [{"email": to_email}]
 
         send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-            to=to,
-            html_content=html_content,
-            sender=sender,
-            subject=subject
+            to=to, html_content=html_content, sender=sender, subject=subject
         )
 
         api_response = api_instance.send_transac_email(send_smtp_email)
