@@ -2,11 +2,14 @@ import os
 from tempfile import NamedTemporaryFile
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.models.participante_model import Participante
 from src.preprocessing.preprocessing import AudioSegment
 from src.schemas.audio_schema import AudioResponse
+from src.schemas.usuario_schema import UsuarioResponse
 from src.security import get_current_user, verify_role
 from src.services.audio_service import AudioService
 
@@ -51,6 +54,7 @@ async def audio_upload(
     finally:
         os.remove(temp_wav_path)
 
+
 @router.patch(
     "/{id}",
     response_model=AudioResponse,
@@ -71,3 +75,34 @@ async def update(
 async def delete(id: int, db: AsyncSession = Depends(get_db)):
     await service.delete_audio(id, db)
     return {"message": "Áudio deletado com sucesso"}
+
+
+@router.delete(
+    "/usuario/{id_usuario}",
+    dependencies=[Depends(verify_role("admin"))],
+)
+async def delete_audios_by_user(id_usuario: int, db: AsyncSession = Depends(get_db)):
+    """Endpoint para deletar todos os áudios associados a um usuário específico"""
+    await service.delete_all_audios_by_user(id_usuario, db)
+    return {"message": "Todos os áudios do usuário foram deletados com sucesso"}
+
+
+@router.get(
+    "/usuario/{id_usuario}",
+    response_model=list[AudioResponse],
+    dependencies=[Depends(get_current_user)],
+)
+async def list_audios_by_user(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    """Endpoint para listar todos os áudios associados a um usuário específico"""
+    if current_user.role != "admin" and current_user.id != id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sem permissão para acessar esses áudios",
+        )
+
+    return await service.list_audios_by_user(id, db)
+
