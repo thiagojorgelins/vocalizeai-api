@@ -17,7 +17,6 @@ class NivelSuporte(int, Enum):
     NIVEL_1 = 1
     NIVEL_2 = 2
     NIVEL_3 = 3
-    
 
 
 class GeneroParticipante(str, Enum):

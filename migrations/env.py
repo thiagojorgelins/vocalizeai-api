@@ -2,7 +2,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from src.database import DATABASE_URL, Base, engine
+from src.database import DATABASE_URL, Base, engine, ENV_TYPE
 
 from src.models import Audio, Classificacao, Participante, Usuario, Vocalizacao
 

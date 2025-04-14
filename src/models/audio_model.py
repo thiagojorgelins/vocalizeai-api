@@ -11,9 +11,11 @@ class Audio(Base):
     id_vocalizacao: Mapped[int] = mapped_column(
         ForeignKey("vocalizacao.id"), nullable=False
     )
-    id_usuario: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    id_usuario: Mapped[int] = mapped_column(
+        ForeignKey("usuario.id", ondelete="CASCADE"), nullable=False
+    )
     id_participante: Mapped[int] = mapped_column(
-        ForeignKey("participante.id"), nullable=False
+        ForeignKey("participante.id", ondelete="CASCADE"), nullable=False
     )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

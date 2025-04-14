@@ -8,7 +8,7 @@ class Participante(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     id_usuario: Mapped[int] = mapped_column(
-        ForeignKey("usuario.id"), nullable=False, unique=True
+        ForeignKey("usuario.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     genero: Mapped[str] = mapped_column(String, nullable=False)
     idade: Mapped[int] = mapped_column(nullable=False)
@@ -21,4 +21,6 @@ class Participante(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     usuario: Mapped["Usuario"] = relationship(back_populates="participante")
-    audios: Mapped[list["Audio"]] = relationship(back_populates="participante")
+    audios: Mapped[list["Audio"]] = relationship(
+        back_populates="participante", cascade="all, delete-orphan"
+    )

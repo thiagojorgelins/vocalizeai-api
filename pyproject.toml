@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "cauta-api"
+name = "vocalizeai-api"
 version = "0.1.0"
 description = ""
 authors = ["thiagojorgelins <thiago.jorge2001@gmail.com>"]

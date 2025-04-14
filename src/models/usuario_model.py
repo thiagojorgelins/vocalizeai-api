@@ -20,11 +20,15 @@ class Usuario(Base):
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
     verificado: Mapped[bool] = mapped_column(Boolean, default=False)
-    aceite_termos: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text('false'))
+    aceite_termos: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )
     participante: Mapped["Participante"] = relationship(
-        back_populates="usuario", uselist=False
+        back_populates="usuario", uselist=False, cascade="all, delete-orphan"
     )
     classificacoes: Mapped[list["Classificacao"]] = relationship(
         back_populates="usuario"
     )
-    audios: Mapped[list["Audio"]] = relationship(back_populates="usuario")
+    audios: Mapped[list["Audio"]] = relationship(
+        back_populates="usuario", cascade="all, delete-orphan"
+    )

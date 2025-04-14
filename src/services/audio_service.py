@@ -18,13 +18,14 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION")
 
+
 class AudioService:
     def __init__(self):
         self.s3_client = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-            region_name=AWS_DEFAULT_REGION
+            region_name=AWS_DEFAULT_REGION,
         )
 
     def _generate_filename(
@@ -128,7 +129,7 @@ class AudioService:
                 Bucket=S3_BUCKET_NAME,
                 Key=novo_nome_arquivo,
                 Body=file_data,
-                ContentType='audio/wav'
+                ContentType="audio/wav",
             )
 
             # Processar o áudio para obter os segmentos
@@ -140,6 +141,8 @@ class AudioService:
 
             # Upload dos segmentos
             base_filename = novo_nome_arquivo[:-4]  # Remover a extensão .wav
+            segment_filenames = []
+
             for idx, segment_info in enumerate(segments):
                 segment_filename = self._generate_filename(
                     vocalizacao_nome=vocalizacao.nome,
@@ -149,13 +152,18 @@ class AudioService:
                     segment_number=idx + 1,
                     base_filename=base_filename,
                 )
-                segment_data_bytes = segment_info["segment_data"].export(format="wav").read()
+                segment_filenames.append(segment_filename)
+                segment_data_bytes = (
+                    segment_info["segment_data"].export(format="wav").read()
+                )
                 self.s3_client.put_object(
                     Bucket=S3_BUCKET_NAME,
                     Key=segment_filename,
                     Body=segment_data_bytes,
-                    ContentType='audio/wav'
+                    ContentType="audio/wav",
                 )
+
+            audio_data.segments = segment_filenames
 
         except (NoCredentialsError, ClientError) as e:
             await db.delete(audio_data)
@@ -176,6 +184,20 @@ class AudioService:
 
     async def list_audios(self, db: AsyncSession) -> list[Audio]:
         result = await db.execute(select(Audio))
+        return result.scalars().all()
+
+    async def list_audios_by_user(self, user_id: int, db: AsyncSession) -> list[Audio]:
+        """Lista todos os áudios associados a um usuário específico"""
+        result = await db.execute(select(Audio).where(Audio.id_usuario == user_id))
+        return result.scalars().all()
+
+    async def list_audios_by_participante(
+        self, participante_id: int, db: AsyncSession
+    ) -> list[Audio]:
+        """Lista todos os áudios associados a um participante específico"""
+        result = await db.execute(
+            select(Audio).where(Audio.id_participante == participante_id)
+        )
         return result.scalars().all()
 
     async def _get_one(self, id: int, db: AsyncSession) -> Audio:
@@ -206,6 +228,31 @@ class AudioService:
 
         try:
             self.s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=audio.nome_arquivo)
+
+            base_filename = audio.nome_arquivo[:-4]
+
+            if hasattr(audio, "segments") and audio.segments:
+                for segment_name in audio.segments:
+                    try:
+                        self.s3_client.delete_object(
+                            Bucket=S3_BUCKET_NAME, Key=segment_name
+                        )
+                    except Exception as e:
+                        print(f"Erro ao deletar segmento {segment_name}: {str(e)}")
+            else:
+                try:
+                    response = self.s3_client.list_objects_v2(
+                        Bucket=S3_BUCKET_NAME, Prefix=f"{base_filename}_segment_"
+                    )
+
+                    if "Contents" in response:
+                        for obj in response["Contents"]:
+                            self.s3_client.delete_object(
+                                Bucket=S3_BUCKET_NAME, Key=obj["Key"]
+                            )
+                except Exception as e:
+                    print(f"Erro ao buscar ou deletar segmentos: {str(e)}")
+
         except (NoCredentialsError, ClientError) as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -214,3 +261,9 @@ class AudioService:
 
         await db.execute(delete(Audio).where(Audio.id == audio_id))
         await db.commit()
+
+    async def delete_all_audios_by_user(self, user_id: int, db: AsyncSession) -> None:
+        """Remove todos os áudios associados a um usuário específico"""
+        audios = await self.list_audios_by_user(user_id, db)
+        for audio in audios:
+            await self.delete_audio(audio.id, db)

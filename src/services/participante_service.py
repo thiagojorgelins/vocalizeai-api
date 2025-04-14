@@ -1,10 +1,13 @@
+import os
+from tempfile import NamedTemporaryFile
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import Participante
-from src.schemas.participante_schema import (ParticipanteCreate,
-                                             ParticipanteUpdate)
+from src.models import Audio, Participante
+from src.schemas.participante_schema import ParticipanteCreate, ParticipanteUpdate
+from src.services.audio_service import AudioService
 
 
 class ParticipanteService:
@@ -43,7 +46,12 @@ class ParticipanteService:
         return db_participante
 
     async def update(
-        self, id: int, participante: ParticipanteUpdate, usuario_id: int, role: str, db: AsyncSession
+        self,
+        id: int,
+        participante: ParticipanteUpdate,
+        usuario_id: int,
+        role: str,
+        db: AsyncSession,
     ) -> Participante:
         participante_db = await self.get_one(id, db)
 
@@ -62,5 +70,14 @@ class ParticipanteService:
 
     async def delete(self, id: int, db: AsyncSession) -> None:
         participante = await self.get_one(id, db)
+
+        result = await db.execute(select(Audio).where(Audio.id_participante == id))
+        audios = result.scalars().all()
+
+        if audios:
+            audio_service = AudioService()
+            for audio in audios:
+                await audio_service.delete_audio(audio.id, db)
+
         await db.delete(participante)
         await db.commit()
