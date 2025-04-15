@@ -3,6 +3,7 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import boto3
+from botocore.client import Config
 from botocore.exceptions import ClientError, NoCredentialsError
 from fastapi import HTTPException, status
 from sqlalchemy import delete, select
@@ -10,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import Audio, Usuario, Vocalizacao
 from src.models.participante_model import Participante
-from src.schemas.usuario_schema import UsuarioResponse
 from src.preprocessing.preprocessing import segment_data
+from src.schemas.usuario_schema import UsuarioResponse
 
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -26,6 +27,7 @@ class AudioService:
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
             region_name=AWS_DEFAULT_REGION,
+            config=Config(signature_version="s3v4"),
         )
 
     def _generate_filename(
@@ -37,8 +39,12 @@ class AudioService:
         original_filename: str = None,
         segment_number: int = None,
         base_filename: str = None,
+        timestamp_str: str = None,
     ) -> str:
-        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+        if not timestamp_str:
+            timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+        else:
+            timestamp = timestamp_str
 
         if is_segment and base_filename:
             return f"{base_filename}_segment_{segment_number}.wav"
@@ -186,18 +192,31 @@ class AudioService:
         result = await db.execute(select(Audio))
         return result.scalars().all()
 
-    async def list_audios_by_user(self, user_id: int, db: AsyncSession) -> list[Audio]:
-        """Lista todos os áudios associados a um usuário específico"""
-        result = await db.execute(select(Audio).where(Audio.id_usuario == user_id))
-        return result.scalars().all()
+    def generate_presigned_url(
+        self, bucket_name: str, object_name: str, expiration: int = 3600
+    ) -> str:
+        """
+        Gera uma URL pré-assinada para o objeto no S3.
+        'expiration' = tempo em segundos que a URL ficará válida.
+        """
+        try:
+            presigned_url = self.s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket_name, "Key": object_name},
+                ExpiresIn=expiration,
+            )
+            return presigned_url
+        except ClientError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Erro ao gerar URL do arquivo no S3: {str(e)}",
+            )
 
-    async def list_audios_by_participante(
-        self, participante_id: int, db: AsyncSession
+    async def list_audios_by_user(
+        self, id_usuario: int, db: AsyncSession
     ) -> list[Audio]:
-        """Lista todos os áudios associados a um participante específico"""
-        result = await db.execute(
-            select(Audio).where(Audio.id_participante == participante_id)
-        )
+        """Lista todos os áudios associados a um usuário específico"""
+        result = await db.execute(select(Audio).where(Audio.id_usuario == id_usuario))
         return result.scalars().all()
 
     async def _get_one(self, id: int, db: AsyncSession) -> Audio:
