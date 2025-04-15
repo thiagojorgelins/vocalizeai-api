@@ -32,3 +32,6 @@ class Usuario(Base):
     audios: Mapped[list["Audio"]] = relationship(
         back_populates="usuario", cascade="all, delete-orphan"
     )
+    vocalizacoes: Mapped[list["Vocalizacao"]] = relationship(
+        back_populates="usuario", uselist=False, cascade="all, delete-orphan"
+    )

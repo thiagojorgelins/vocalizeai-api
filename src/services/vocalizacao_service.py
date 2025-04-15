@@ -14,7 +14,7 @@ class VocalizacaoService:
         return await self.__get_by_id(id, db)
 
     async def create(
-        self, vocalizacao: VocalizacaoCreate, db: AsyncSession
+        self, vocalizacao: VocalizacaoCreate, db: AsyncSession, usuario_id: int
     ) -> Vocalizacao:
         query = await db.execute(
             select(Vocalizacao).where(Vocalizacao.nome == vocalizacao.nome)
@@ -25,7 +25,9 @@ class VocalizacaoService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Vocalização já cadastrada.",
             )
-        db_vocalizacao = Vocalizacao(**vocalizacao.model_dump())
+        db_vocalizacao = vocalizacao.model_dump()
+        db_vocalizacao["id_usuario"] = usuario_id
+        db_vocalizacao = Vocalizacao(**db_vocalizacao)
         db.add(db_vocalizacao)
         await db.commit()
         await db.refresh(db_vocalizacao)
