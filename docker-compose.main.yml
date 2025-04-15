@@ -25,8 +25,6 @@ services:
       DATABASE_HOST: vocalizeai_database
       TZ: America/Sao_Paulo
       ENV_TYPE: main
-    volumes:
-      - .:/app
 
   vocalizeai_redis:
     image: redis:latest
