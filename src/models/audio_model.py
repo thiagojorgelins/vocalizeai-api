@@ -9,7 +9,7 @@ class Audio(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     nome_arquivo: Mapped[str] = mapped_column(String, nullable=False)
     id_vocalizacao: Mapped[int] = mapped_column(
-        ForeignKey("vocalizacao.id"), nullable=False
+        ForeignKey("vocalizacao.id", ondelete="CASCADE"), nullable=False
     )
     id_usuario: Mapped[int] = mapped_column(
         ForeignKey("usuario.id", ondelete="CASCADE"), nullable=False

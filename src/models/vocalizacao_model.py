@@ -1,5 +1,6 @@
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, func
+
 from src.database import Base
 
 
@@ -12,6 +13,9 @@ class Vocalizacao(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    id_usuario: Mapped[int] = mapped_column(
+        ForeignKey("usuario.id", ondelete="CASCADE"), nullable=False
+    )
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -20,3 +24,4 @@ class Vocalizacao(Base):
         back_populates="vocalizacao"
     )
     audios: Mapped[list["Audio"]] = relationship(back_populates="vocalizacao")
+    usuario: Mapped["Usuario"] = relationship(back_populates="vocalizacoes")

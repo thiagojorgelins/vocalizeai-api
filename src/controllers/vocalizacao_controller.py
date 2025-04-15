@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
+from src.schemas.usuario_schema import UsuarioResponse
 from src.schemas.vocalizacao_schema import VocalizacaoCreate, VocalizacaoResponse
 from src.security import get_current_user, verify_role
 from src.services.vocalizacao_service import VocalizacaoService
@@ -32,21 +33,33 @@ async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
     "/",
     response_model=VocalizacaoResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(verify_role("admin"))],
 )
-async def create(vocalizacao: VocalizacaoCreate, db: AsyncSession = Depends(get_db)):
-    return await service.create(vocalizacao, db)
+async def create(
+    vocalizacao: VocalizacaoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    usuario_id = current_user.id
+    return await service.create(vocalizacao, db, usuario_id)
 
 
 @router.patch(
     "/{id}",
     response_model=VocalizacaoResponse,
-    dependencies=[Depends(verify_role("admin"))],
 )
 async def update(
-    id: int, vocalizacao: VocalizacaoCreate, db: AsyncSession = Depends(get_db)
+    id: int,
+    vocalizacao: VocalizacaoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
 ):
-    return await service.update(id, vocalizacao, db)
+    if current_user.role == "admin" or current_user.id == vocalizacao.id_usuario:
+        return await service.update(id, vocalizacao, db)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Você não tem permissão para atualizar esta vocalização.",
+        )
 
 
 @router.delete(
