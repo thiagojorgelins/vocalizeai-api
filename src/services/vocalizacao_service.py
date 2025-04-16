@@ -7,7 +7,7 @@ from src.schemas.vocalizacao_schema import VocalizacaoCreate
 
 class VocalizacaoService:
     async def get_all(self, db: AsyncSession) -> list[Vocalizacao]:
-        result = await db.execute(select(Vocalizacao))
+        result = await db.execute(select(Vocalizacao).order_by(Vocalizacao.nome))
         return result.scalars().all()
 
     async def get_one(self, id: int, db: AsyncSession) -> Vocalizacao:
