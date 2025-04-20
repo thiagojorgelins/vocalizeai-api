@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.models import Vocalizacao
-from src.schemas.vocalizacao_schema import VocalizacaoCreate
+from src.schemas.vocalizacao_schema import VocalizacaoCreate, VocalizacaoUpdate
 
 
 class VocalizacaoService:
@@ -44,9 +44,20 @@ class VocalizacaoService:
         return vocalizacao
 
     async def update(
-        self, id: int, vocalizacao: VocalizacaoCreate, db: AsyncSession
+        self,
+        id: int,
+        vocalizacao: VocalizacaoUpdate,
+        id_usuario: int,
+        role: str,
+        db: AsyncSession
     ) -> Vocalizacao:
-        vocalizacao_db = await self.__get_by_id(id, db)
+        vocalizacao_db = await self.get_one(id, db)
+
+        if role != "admin" and vocalizacao_db.id_usuario != id_usuario:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para atualizar esta vocalização.",
+            )
         for key, value in vocalizacao.model_dump(exclude_unset=True).items():
             setattr(vocalizacao_db, key, value)
 
