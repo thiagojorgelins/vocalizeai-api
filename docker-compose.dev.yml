@@ -1,3 +1,6 @@
+networks:
+  dev_network:
+    name: vocalizeai_dev_network
 services:
   vocalizeai_database_dev:
     image: postgres
@@ -11,7 +14,8 @@ services:
       TZ: America/Sao_Paulo
     ports:
       - "5433:5432"
-
+    networks:
+      - dev_network
   vocalizeai_backend_dev:
     build: .
     container_name: vocalizeai_backend_dev
@@ -25,6 +29,8 @@ services:
       DATABASE_HOST: vocalizeai_database_dev
       TZ: America/Sao_Paulo
       ENV_TYPE: dev
+    networks:
+      - dev_network
     volumes:
       - .:/app
 
@@ -33,6 +39,7 @@ services:
     container_name: vocalizeai_redis_dev
     ports:
       - "127.0.0.1:6380:6379"
-
+    networks:
+      - dev_network
 volumes:
   pgdata_dev:
