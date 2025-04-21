@@ -23,5 +23,7 @@ class Vocalizacao(Base):
     classificacoes: Mapped[list["Classificacao"]] = relationship(
         back_populates="vocalizacao"
     )
-    audios: Mapped[list["Audio"]] = relationship(back_populates="vocalizacao")
+    audios: Mapped[list["Audio"]] = relationship(
+        back_populates="vocalizacao", cascade="all, delete-orphan"
+    )
     usuario: Mapped["Usuario"] = relationship(back_populates="vocalizacoes")
