@@ -25,6 +25,7 @@ service = AudioService()
 )
 async def audio_upload(
     id_vocalizacao: int,
+    id_participante: int = None,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
@@ -45,6 +46,7 @@ async def audio_upload(
 
         audio_record = await service.upload_audio(
             id_vocalizacao=id_vocalizacao,
+            id_participante=id_participante,
             file_data=file_data,
             current_user=current_user,
             db=db,
@@ -241,3 +243,58 @@ async def list_audios_by_user(
         )
 
     return await service.list_audios_by_user(id_usuario, db)
+
+
+@router.get(
+    "/participante/{id_participante}",
+    response_model=list[AudioResponse],
+)
+async def list_audios_by_participante(
+    id_participante: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    """Endpoint para listar todos os áudios associados a um participante específico"""
+    if current_user.role != "admin":
+        result = await db.execute(
+            select(Participante).where(
+                Participante.id == id_participante,
+                Participante.id_usuario == current_user.id,
+            )
+        )
+        participante = result.scalars().first()
+        if not participante:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sem permissão para acessar os áudios deste participante",
+            )
+
+    return await service.list_audios_by_participante(id_participante, db)
+
+
+@router.delete(
+    "/participante/{id_participante}",
+    dependencies=[Depends(verify_role("admin"))],
+)
+async def delete_audios_by_participante(
+    id_participante: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    """Endpoint para deletar todos os áudios associados a um participante específico"""
+    if current_user.role != "admin":
+        result = await db.execute(
+            select(Participante).where(
+                Participante.id == id_participante,
+                Participante.id_usuario == current_user.id,
+            )
+        )
+        participante = result.scalars().first()
+        if not participante:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sem permissão para excluir os áudios deste participante",
+            )
+
+    await service.delete_all_audios_by_participante(id_participante, db)
+    return {"message": "Todos os áudios do participante foram deletados com sucesso"}
