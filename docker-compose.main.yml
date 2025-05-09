@@ -1,6 +1,5 @@
 networks:
-  main_network:
-    name: vocalizeai_main_network
+  main_network: {}
 services:
   vocalizeai_database:
     image: postgres
