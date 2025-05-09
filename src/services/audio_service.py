@@ -97,16 +97,31 @@ class AudioService:
         current_user: UsuarioResponse,
         db: AsyncSession,
         original_filename: str,
+        id_participante: int = None,
     ) -> Audio:
-        participante = await db.execute(
-            select(Participante).where(Participante.id_usuario == current_user.id)
-        )
-        participante = participante.scalars().first()
-        if not participante:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Participante associado ao usuário não encontrado.",
+        if id_participante:
+            result = await db.execute(
+                select(Participante).where(
+                    Participante.id == id_participante,
+                    Participante.id_usuario == current_user.id,
+                )
             )
+            participante = result.scalars().first()
+            if not participante:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Participante não encontrado ou não pertence ao usuário atual.",
+                )
+        else:
+            result = await db.execute(
+                select(Participante).where(Participante.id_usuario == current_user.id)
+            )
+            participante = result.scalars().first()
+            if not participante:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Participante associado ao usuário não encontrado.",
+                )
 
         vocalizacao = await self._get_vocalizacao(id_vocalizacao, db)
 
@@ -191,6 +206,21 @@ class AudioService:
     async def list_audios(self, db: AsyncSession) -> list[Audio]:
         result = await db.execute(select(Audio))
         return result.scalars().all()
+
+    async def list_audios_by_participante(
+        self, id_participante: int, db: AsyncSession
+    ) -> list[Audio]:
+        result = await db.execute(
+            select(Audio).where(Audio.id_participante == id_participante)
+        )
+        return result.scalars().all()
+
+    async def delete_all_audios_by_participante(
+        self, participante_id: int, db: AsyncSession
+    ) -> None:
+        audios = await self.list_audios_by_participante(participante_id, db)
+        for audio in audios:
+            await self.delete_audio(audio.id, db)
 
     def generate_presigned_url(
         self, bucket_name: str, object_name: str, expiration: int = 3600

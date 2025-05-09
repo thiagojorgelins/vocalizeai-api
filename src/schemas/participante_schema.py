@@ -26,6 +26,7 @@ class GeneroParticipante(str, Enum):
 
 
 class ParticipanteBase(BaseModel):
+    nome: str = "Participante"
     genero: GeneroParticipante
     idade: int
     nivel_suporte: NivelSuporte
@@ -37,6 +38,7 @@ class ParticipanteCreate(ParticipanteBase):
 
 
 class ParticipanteUpdate(ParticipanteBase):
+    nome: Optional[str] = None
     genero: Optional[GeneroParticipante]
     idade: Optional[int]
     nivel_suporte: Optional[NivelSuporte]

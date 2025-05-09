@@ -28,15 +28,7 @@ class ParticipanteService:
     async def create(
         self, participante: ParticipanteCreate, usuario_id: int, db: AsyncSession
     ) -> Participante:
-        result = await db.execute(
-            select(Participante).where(Participante.id_usuario == usuario_id)
-        )
-        existing_participante = result.scalars().first()
-        if existing_participante:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="O usuário já possui um participante associado.",
-            )
+
         participante_data = participante.model_dump()
         participante_data["id_usuario"] = usuario_id
         db_participante = Participante(**participante_data)
@@ -44,6 +36,20 @@ class ParticipanteService:
         await db.commit()
         await db.refresh(db_participante)
         return db_participante
+
+    async def get_participantes_by_usuario(
+        self, usuario_id: int, db: AsyncSession
+    ) -> list[Participante]:
+        result = await db.execute(
+            select(Participante).where(Participante.id_usuario == usuario_id)
+        )
+        participantes = result.scalars().all()
+        if not participantes:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nenhum participante encontrado para este usuário",
+            )
+        return participantes
 
     async def update(
         self,

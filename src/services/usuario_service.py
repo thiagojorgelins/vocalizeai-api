@@ -22,7 +22,7 @@ class UsuarioService:
     async def __get_by_id(self, id: int, db: AsyncSession) -> Usuario:
         result = await db.execute(
             select(Usuario)
-            .options(joinedload(Usuario.participante))
+            .options(joinedload(Usuario.participantes))
             .where(Usuario.id == id)
         )
         usuario = result.scalars().first()

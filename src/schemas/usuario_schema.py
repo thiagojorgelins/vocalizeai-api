@@ -18,12 +18,19 @@ class UsuarioUpdate(BaseModel):
 
 class ParticipanteResponse(BaseModel):
     id: int
+    nome: str
+
+    class Config:
+        from_attributes = True
 
 
 class UsuarioPayload(UsuarioBase):
     id: int
     role: str
-    participante: Optional[ParticipanteResponse] = None
+    participantes: list[ParticipanteResponse] = []
+
+    class Config:
+        from_attributes = True
 
 
 class UsuarioResponse(UsuarioBase):

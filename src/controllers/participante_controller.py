@@ -33,6 +33,25 @@ async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
     return await service.get_one(id, db)
 
 
+@router.get(
+    "/usuario/{usuario_id}",
+    response_model=list[ParticipanteResponse],
+    dependencies=[Depends(get_current_user)],
+)
+async def get_by_usuario(
+    usuario_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UsuarioResponse = Depends(get_current_user),
+):
+    if current_user.role == "admin" or usuario_id == current_user.id:
+        return await service.get_participantes_by_usuario(usuario_id, db)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Você não tem permissão para acessar os participantes deste usuário",
+        )
+
+
 @router.post(
     "/", response_model=ParticipanteResponse, status_code=status.HTTP_201_CREATED
 )
