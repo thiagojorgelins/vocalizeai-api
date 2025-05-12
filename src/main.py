@@ -12,10 +12,13 @@ from src.controllers import (
 from src.security import get_api_key
 from src.database import ENV_TYPE
 
+root_path = os.getenv("API_ROOT_PATH", "")
+
 app = FastAPI(
     title=f"VocalizeAI API - {ENV_TYPE.upper()}",
     description=f"API para o projeto VocalizeAI - Ambiente: {ENV_TYPE.upper()}",
     redoc_url=None,
+    root_path=root_path
 )
 
 app.add_middleware(

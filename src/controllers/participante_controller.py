@@ -16,7 +16,7 @@ service = ParticipanteService()
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[ParticipanteResponse],
     dependencies=[Depends(verify_role("admin"))],
 )
@@ -53,7 +53,7 @@ async def get_by_usuario(
 
 
 @router.post(
-    "/", response_model=ParticipanteResponse, status_code=status.HTTP_201_CREATED
+    "", response_model=ParticipanteResponse, status_code=status.HTTP_201_CREATED
 )
 async def create(
     participante: ParticipanteCreate,
