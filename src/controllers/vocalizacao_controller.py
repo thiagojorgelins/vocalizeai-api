@@ -16,7 +16,7 @@ service = VocalizacaoService()
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[VocalizacaoResponse],
     dependencies=[Depends(get_current_user)],
 )

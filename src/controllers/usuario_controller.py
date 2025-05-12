@@ -13,7 +13,7 @@ auth_service = AuthService()
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[UsuarioResponse],
     dependencies=[Depends(verify_role("admin"))],
 )
