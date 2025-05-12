@@ -28,6 +28,7 @@ services:
       DATABASE_HOST: vocalizeai_database_dev
       TZ: America/Sao_Paulo
       ENV_TYPE: dev
+      API_ROOT_PATH: /dev-api
     networks:
       - dev_network
     volumes:
