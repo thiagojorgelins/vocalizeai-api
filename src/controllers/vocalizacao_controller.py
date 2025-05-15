@@ -34,7 +34,7 @@ async def get_by_id(id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post(
-    "/",
+    "",
     response_model=VocalizacaoResponse,
     status_code=status.HTTP_201_CREATED,
 )
