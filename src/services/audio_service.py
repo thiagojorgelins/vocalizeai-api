@@ -258,6 +258,11 @@ class AudioService:
             )
         return audio
 
+    async def get_amount_audios_participante(self, id: int, db: AsyncSession) -> int:
+        result = await db.execute(select(Audio).where(Audio.id_participante == id))
+        amount = result.scalars().all()
+        return len(amount)
+
     async def update(self, id: int, audio_data: dict, db: AsyncSession) -> Audio:
         audio_db = await self._get_one(id, db)
         for key, value in audio_data.items():

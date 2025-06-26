@@ -31,7 +31,8 @@ async def audio_upload(
     current_user: dict = Depends(get_current_user),
 ):
     if not file.content_type.startswith("audio"):
-        raise HTTPException(status_code=400, detail="Arquivo de áudio inválido.")
+        raise HTTPException(
+            status_code=400, detail="Arquivo de áudio inválido.")
 
     with NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav_file:
         temp_wav_path = temp_wav_file.name
@@ -270,6 +271,32 @@ async def list_audios_by_participante(
             )
 
     return await service.list_audios_by_participante(id_participante, db)
+
+
+@router.get("/amount/participante/{id_participante}", dependencies=[Depends(verify_role("admin"))])
+async def amount_audios_by_participante(
+    id_participante: int,
+    current_user: UsuarioResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Você não tem permissão para acessar a quantidade de áudios deste participante.",
+        )
+    if not isinstance(id_participante, int) or id_participante <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="O ID do participante informado é inválido.",
+        )
+    try:
+        quantidade = await service.get_amount_audios_participante(id_participante, db)
+        return {"quantidade": quantidade}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao buscar a quantidade de áudios do participante: {str(e)}",
+        )
 
 
 @router.delete(
