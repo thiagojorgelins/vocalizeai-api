@@ -1,5 +1,6 @@
 import os
 import random
+from datetime import UTC, datetime
 
 import redis
 from fastapi import HTTPException, status
@@ -8,10 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import Usuario
-from src.schemas.auth_schema import AuthLogin, AuthRegister, Token
+from src.schemas.auth_schema import AuthLogin, AuthRegister, Token, RefreshTokenRequest
 from src.security import (
     create_access_token,
+    create_refresh_token,
     decode_access_token,
+    decode_refresh_token,
     get_password_hash,
     verify_password,
 )
@@ -76,7 +79,7 @@ class AuthService:
         await db.commit()
         return usuario
 
-    async def authenticate(self, login: AuthLogin, db: AsyncSession) -> str:
+    async def authenticate(self, login: AuthLogin, db: AsyncSession) -> dict:
         usuario = await self.get_by_email(login.email, db)
         if not usuario:
             raise HTTPException(
@@ -97,20 +100,29 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        token_data = {"sub": str(usuario.id), "role": usuario.role}
-        access_token = create_access_token(token_data)
-        return access_token
+        return await self.generate_tokens(usuario)
 
-    async def refresh_token(self, current_token: Token, db: AsyncSession) -> dict:
+    async def refresh_token(self, refresh_request: RefreshTokenRequest, db: AsyncSession) -> dict:
         try:
-            payload = decode_access_token(current_token.access_token, verify_exp=False)
+            # Decodificar o refresh token
+            payload = decode_refresh_token(refresh_request.refresh_token)
             usuario_id = payload.get("sub")
+            
             if not usuario_id:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Token inválido ou não contém informações do usuário.",
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token inválido ou não contém informações do usuário.",
                 )
 
+            # Verificar se o refresh token está armazenado no Redis
+            stored_refresh_token = redis_client.get(f"refresh_token:{usuario_id}")
+            if not stored_refresh_token or stored_refresh_token.decode("utf-8") != refresh_request.refresh_token:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Sua sessão expirou. Faça login novamente.",
+                )
+
+            # Buscar o usuário no banco de dados
             result = await db.execute(
                 select(Usuario).where(Usuario.id == int(usuario_id))
             )
@@ -122,15 +134,18 @@ class AuthService:
                     detail="Usuário não encontrado.",
                 )
 
-            token_data = {"sub": str(usuario.id), "role": usuario.role}
-            new_access_token = create_access_token(token_data)
-
-            return {"access_token": new_access_token}
+            # Invalidar o refresh token atual adicionando-o à blacklist
+            await self.blacklist_token(refresh_request.refresh_token)
+            
+            # Gerar novos tokens
+            new_tokens = await self.generate_tokens(usuario)
+            
+            return new_tokens
 
         except ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expirado. Faça login novamente.",
+                detail="Refresh token expirado. Faça login novamente.",
             )
         except Exception as e:
             raise HTTPException(
@@ -200,3 +215,70 @@ class AuthService:
         if stored_code is None:
             return False
         return stored_code.decode("utf-8") == code
+
+    async def generate_tokens(self, usuario: Usuario) -> dict:
+        """Gera access token e refresh token para o usuário."""
+        payload = {
+            "sub": str(usuario.id),
+            "email": usuario.email,
+            "role": usuario.role,
+        }
+
+        access_token = create_access_token(payload)
+        refresh_token = create_refresh_token(payload)
+
+        # Armazenar o refresh token no Redis com expiração de 7 dias
+        refresh_token_expiry = 7 * 24 * 60 * 60  # 7 dias em segundos
+        redis_client.set(
+            f"refresh_token:{usuario.id}",
+            refresh_token,
+            ex=refresh_token_expiry
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+        }
+
+    async def blacklist_token(self, token: str) -> None:
+        """Adiciona um token à blacklist no Redis."""
+        try:
+            # Decodificar o token para obter o tempo de expiração
+            payload = decode_refresh_token(token, verify_exp=False)
+            exp = payload.get("exp")
+            
+            if exp:
+                now = datetime.now(UTC).timestamp()
+                ttl = int(exp - now)
+                
+                if ttl > 0:
+                    redis_client.set(f"blacklist:{token}", "1", ex=ttl)
+        except:
+            # Se não conseguir decodificar, adiciona com TTL padrão
+            redis_client.set(f"blacklist:{token}", "1", ex=86400)  # 24 horas
+
+    async def logout(self, usuario_id: int, access_token: str = None, refresh_token: str = None) -> dict:
+        """Realiza logout invalidando os tokens."""
+        try:
+            # Invalidar access token se fornecido
+            if access_token:
+                await self.blacklist_token(access_token)
+            
+            # Invalidar refresh token se fornecido
+            if refresh_token:
+                await self.blacklist_token(refresh_token)
+            
+            # Remover refresh token do Redis
+            redis_client.delete(f"refresh_token:{usuario_id}")
+            
+            return {"message": "Logout realizado com sucesso."}
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Ocorreu um erro durante o logout. Sua sessão foi encerrada com segurança.",
+            )
+
+    def is_token_blacklisted(self, token: str) -> bool:
+        """Verifica se um token está na blacklist."""
+        return redis_client.exists(f"blacklist:{token}") > 0

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 from src.database import get_db
 from src.schemas.auth_schema import (
@@ -9,9 +10,12 @@ from src.schemas.auth_schema import (
     ResetPassword,
     EmailRequest,
     Token,
+    RefreshTokenRequest,
+    LogoutRequest,
 )
 from src.schemas.usuario_schema import UsuarioResponse
 from src.services.auth_service import AuthService
+from src.security import get_current_user
 
 router = APIRouter()
 service = AuthService()
@@ -26,16 +30,16 @@ async def register(usuario: AuthRegister, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(login: AuthLogin, db: AsyncSession = Depends(get_db)):
-    token = await service.authenticate(login, db)
-    return {"access_token": token}
+    tokens = await service.authenticate(login, db)
+    return tokens
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    current_token: Token,
+    refresh_request: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    return await service.refresh_token(current_token, db)
+    return await service.refresh_token(refresh_request, db)
 
 
 @router.post("/password-reset", response_model=dict)
@@ -70,3 +74,17 @@ async def resend_confirmation_code(
 ):
     await service.resend_confirmation_code(confirm.email, db)
     return {"detail": "Novo código de confirmação enviado para o e-mail."}
+
+
+@router.post("/logout", response_model=dict)
+async def logout(
+    logout_request: LogoutRequest,
+    current_user = Depends(get_current_user),
+    authorization: Optional[str] = Header(None),
+):
+    # Extrair o access token do header Authorization
+    access_token = None
+    if authorization and authorization.startswith("Bearer "):
+        access_token = authorization[7:]
+    
+    return await service.logout(current_user.id, access_token, logout_request.refresh_token)

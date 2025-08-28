@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from typing import Optional
 
+import redis
 from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
@@ -17,8 +18,10 @@ from src.models.usuario_model import Usuario
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "secret_key")
+REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY", "refresh_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 7))
 API_KEY_NAME = "X-API-Key"
 API_KEY = os.getenv("API_KEY", "default_api_key")
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -26,6 +29,12 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 bearer_scheme = HTTPBearer()
+
+redis_client = redis.StrictRedis(
+    host=os.getenv("REDIS_HOST", "localhost"), 
+    port=int(os.getenv("REDIS_PORT", "6379")), 
+    db=0
+)
 
 
 async def get_api_key(api_key_header: str = Depends(api_key_header)):
@@ -52,6 +61,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    now = datetime.now(UTC)
+    expire = now + (expires_delta or timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+    to_encode.update({"exp": expire, "iat": now})
+    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
+
 def decode_access_token(token: str, verify_exp: bool = True) -> dict:
     try:
         payload = jwt.decode(
@@ -74,6 +91,28 @@ def decode_access_token(token: str, verify_exp: bool = True) -> dict:
         )
 
 
+def decode_refresh_token(token: str, verify_exp: bool = True) -> dict:
+    try:
+        payload = jwt.decode(
+            token,
+            REFRESH_SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"verify_exp": verify_exp},
+        )
+        return payload
+    except ExpiredSignatureError:
+        if verify_exp:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token expirado.",
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token inválido.",
+        )
+
+
 async def get_current_user(
     token: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
@@ -82,6 +121,13 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token não encontrado no cabeçalho Authorization.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if redis_client.exists(f"blacklist:{token.credentials}"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token foi invalidado. Faça login novamente.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -108,6 +154,13 @@ async def get_current_user(
         return usuario
 
     except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Erro desconhecido: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
         raise
     except Exception as e:
         raise HTTPException(
